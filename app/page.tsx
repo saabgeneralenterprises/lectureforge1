@@ -537,7 +537,7 @@ function parseMarkdown(text) {
       const cells = m.split("|").filter((c) => c.trim() && !c.match(/^[-\s]+$/));
       return "<tr>" + cells.map((c) => `<td style="padding:6px 12px;border:1px solid #D8D2C8;font-size:.84rem">${c.trim()}</td>`).join("") + "</tr>";
     })
-    .replace(/(<tr>.*<\/tr>\n?)+/gs, (m) => `<table style="border-collapse:collapse;width:100%;margin:.75rem 0;border-radius:8px;overflow:hidden">${m}</table>`)
+    .replace(/(<tr>[^]*?<\/tr>\n?)+/g, (m) => `<table style="border-collapse:collapse;width:100%;margin:.75rem 0;border-radius:8px;overflow:hidden">${m}</table>`)
     .replace(/^# (.+)$/gm, "<h1 style=\"font-family:'Playfair Display',serif;font-size:1.85rem;font-weight:900;color:#0D0D0D;line-height:1.2;margin-bottom:.75rem\">$1</h1>")
     .replace(/^## (.+)$/gm, (_, s) => {
       const sKey = s.replace(/[^a-zA-Z ]/g, "").trim().toUpperCase();

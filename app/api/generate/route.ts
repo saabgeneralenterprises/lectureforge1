@@ -1,6 +1,6 @@
 // app/api/generate/route.ts
 // DUAL MODEL APPROACH:
-//   Free + Starter  → Gemini 2.0 Flash  (~₦5/note,   96% cheaper)
+//   Free + Starter  → Gemini Flash  (~₦5/note,   96% cheaper)
 //   Basic + Pro + Institution → Claude Sonnet (~₦160/note, best quality)
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -173,7 +173,7 @@ async function generateWithClaude(form: any, controller: ReadableStreamDefaultCo
 // ── GEMINI streaming (free/starter plans) ────────────────────────────────────
 async function generateWithGemini(form: any, controller: ReadableStreamDefaultController, encoder: TextEncoder) {
   const model = gemini.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-1.5-flash",
     generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
   });
 
@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
             encoder.encode(`data: ${JSON.stringify({
               modelInfo: usePremium
                 ? { name: "Claude Sonnet", badge: "⚡ Premium AI" }
-                : { name: "Gemini 2.0 Flash", badge: "✨ AI Generation" }
+                : { name: "Gemini Flash", badge: "✨ AI Generation" }
             })}\n\n`)
           );
 

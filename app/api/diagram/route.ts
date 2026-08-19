@@ -46,7 +46,7 @@ async function callClaude(prompt: string): Promise<string> {
 }
 
 async function callGemini(prompt: string): Promise<string> {
-  const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
   const res = await model.generateContent(prompt);
   return res.response.text();
 }

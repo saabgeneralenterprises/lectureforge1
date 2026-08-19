@@ -39,48 +39,48 @@ const PLAN_PRICES = {
   Institution: { naira: "₦45,000", per: "/month",    apiCost: "~₦48,000",profit: "Custom" },
 };
 
-// ─── API Call ─────────────────────────────────────────────────────────────────
-// ─── Route to right AI based on plan ────────────────────────────────────────
+// ─── Plan routing ─────────────────────────────────────────────────────────────
+// Free + Starter → Gemini 2.0 Flash (cheap, server-side)
+// Basic + Pro + Institution → Claude Sonnet (premium, server-side)
+// Keys are NEVER in the browser — all calls go through /api/* routes
 const PREMIUM_PLANS = ["Basic", "Pro", "Institution"];
 
-async function callClaude(prompt, maxTokens) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+// ─── All AI calls go through our secure backend API routes ───────────────────
+// Keys stay on the server — never exposed to the browser.
+// /api/generate  → streams notes (SSE)
+// /api/diagram   → returns diagram JSON
+// /api/illustration → returns illustration JSON
+
+async function callAI(prompt, maxTokens, userPlan) {
+  // For notes/diagrams/illustrations the dedicated route functions are used.
+  // This generic fallback posts to /api/generate with a raw prompt.
+  const res = await fetch("/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: maxTokens || 8000,
-      messages: [{ role: "user", content: prompt }],
-    }),
+    body: JSON.stringify({ form: { subject: prompt, level: "undergrad", duration: "1 hour", format: "full", style: "", objectives: "" }, userPlan: userPlan || "Free" }),
   });
   const data = await res.json();
   return (data.content || []).map((b) => b.text || "").join("");
 }
 
-async function callGemini(prompt, maxTokens) {
-  // Gemini via OpenAI-compatible endpoint (Google AI Studio)
-  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+async function callDiagramAPI(subject, level, dtype, userPlan) {
+  const res = await fetch("/api/diagram", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + (window._GOOGLE_API_KEY || ""),
-    },
-    body: JSON.stringify({
-      model: "gemini-2.0-flash",
-      max_tokens: maxTokens || 8000,
-      messages: [{ role: "user", content: prompt }],
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subject, level, dtype, userPlan: userPlan || "Free" }),
   });
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || "";
+  if (!res.ok) return null;
+  return res.json();
 }
 
-// Route to Gemini for Free/Starter, Claude for Basic/Pro/Institution
-async function callAI(prompt, maxTokens, userPlan) {
-  if (PREMIUM_PLANS.includes(userPlan)) {
-    return callClaude(prompt, maxTokens);
-  }
-  return callGemini(prompt, maxTokens);
+async function callIllustrationAPI(description, subject, level, userPlan) {
+  const res = await fetch("/api/illustration", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description, subject, level, userPlan: userPlan || "Free" }),
+  });
+  if (!res.ok) return null;
+  return res.json();
 }
 
 // ─── Prompts ──────────────────────────────────────────────────────────────────
@@ -830,32 +830,64 @@ export default function App() {
   async function doGenerate() {
     if (!form.subject.trim()) { setGenErr("Please enter a subject."); return; }
     if (!user) { setSelectedPlan("Free"); setAuthTab("signup"); setPage("login"); return; }
-    if (used >= limit) { setShowPrice(true); return; } // Free = 1, Starter = 15, Basic = 40, Pro = 100
-    setLoading(true); setGenErr(""); setResult(""); setDiagrams([]); setSelDiag([]); setIllustrations([]); setPage("result");
+    if (used >= limit) { setShowPrice(true); return; }
+    setLoading(true); setGenErr(""); setResult(""); setDiagrams([]); setSelDiag([]); setIllustrations([]); setModelInfo(null); setPage("result");
+
+    const userPlan = plan || "Free";
+    const usePremium = PREMIUM_PLANS.includes(userPlan);
+    setModelInfo(usePremium
+      ? { name: "Claude Sonnet", badge: "⭐ Premium AI" }
+      : { name: "Gemini 2.0 Flash", badge: "✨ AI" }
+    );
+
     try {
-      const usePremium = PREMIUM_PLANS.includes(plan || "Free");
-      setModelInfo(usePremium
-        ? { name: "Claude Sonnet", badge: "⭐ Premium AI" }
-        : { name: "Gemini 2.0 Flash", badge: "✨ AI" }
-      );
-      const txt = await callAI(buildNotesPrompt(form), 8000, plan || "Free");
-      setResult(txt);
+      // ── Stream notes from secure backend ──
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ form, userPlan }),
+      });
+
+      if (!res.ok || !res.body) { setGenErr("Generation failed. Please try again."); setLoading(false); return; }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value, { stream: true }).split("\n");
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) { accumulated += parsed.text; setResult(accumulated); }
+            if (parsed.error) { setGenErr(parsed.error); setLoading(false); return; }
+          } catch {}
+        }
+      }
+
+      setLoading(false);
       setUsed((n) => n + 1);
       setHist((h) => [{ sub: form.subject, lv: LEVELS.find((l) => l.id === form.level)?.label || form.level, dt: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) }, ...h.slice(0, 9)]);
-      // Auto-generate illustrations for markers found in the text
-      const illMatches = [...txt.matchAll(/\[ILLUSTRATION:\s*([^\]]+)\]/g)];
+
+      // ── Auto-generate illustrations after notes ──
+      const illMatches = [...accumulated.matchAll(/\[ILLUSTRATION:\s*([^\]]+)\]/g)];
       if (illMatches.length > 0) {
         setIllLoading(true);
         const illResults = await Promise.all(
-          illMatches.slice(0, 4).map((m) => generateIllustration(m[1].trim(), form.subject, form.level, plan || "Free"))
+          illMatches.slice(0, 4).map((m) => callIllustrationAPI(m[1].trim(), form.subject, form.level, userPlan))
         );
         setIllustrations(illResults.filter(Boolean));
         setIllLoading(false);
       }
-    } catch {
-      setGenErr("Generation failed. Please try again.");
+    } catch (e) {
+      setGenErr("Connection error. Please check your internet and try again.");
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   function toggleDiag(id) {
@@ -865,13 +897,9 @@ export default function App() {
   async function doGenDiagrams() {
     if (selDiag.length === 0) return;
     setDiagLoading(true);
+    const userPlan = plan || "Free";
     const results = await Promise.all(
-      selDiag.slice(0, 3).map(async (dtype) => {
-        try {
-          const raw = await callAI(buildDiagramPrompt(form.subject, form.level, dtype), 2000, plan || "Free");
-          return JSON.parse(raw.replace(/```json\n?|```/g, "").trim());
-        } catch { return null; }
-      })
+      selDiag.slice(0, 3).map((dtype) => callDiagramAPI(form.subject, form.level, dtype, userPlan))
     );
     setDiagrams((d) => [...d, ...results.filter(Boolean)]);
     setDiagLoading(false);

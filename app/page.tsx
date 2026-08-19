@@ -837,7 +837,7 @@ export default function App() {
     const usePremium = PREMIUM_PLANS.includes(userPlan);
     setModelInfo(usePremium
       ? { name: "Claude Sonnet", badge: "⭐ Premium AI" }
-      : { name: "Gemini 2.0 Flash", badge: "✨ AI" }
+      : { name: "Gemini 2.5 Flash", badge: "✨ AI" }
     );
 
     try {
@@ -1707,12 +1707,12 @@ export default function App() {
     const plans = [
       {
         n: "Free", price: "₦0", per: "/forever", col: "#8A8F9A", badge: null,
-        feats: ["1 generation · full access", "All 6 academic levels", "Gemini 2.0 Flash AI", "Inline Illustrations", "AI Diagrams (8 types)", "PDF Export"],
+        feats: ["1 generation · full access", "All 6 academic levels", "Gemini 2.5 Flash AI", "Inline Illustrations", "AI Diagrams (8 types)", "PDF Export"],
         cta: cp === "Free" ? "Current Plan" : "Try Free", dis: cp === "Free",
       },
       {
         n: "Starter", price: "₦3,500", per: "/month", col: "#2563EB", badge: "BEST VALUE",
-        feats: ["15 generations/month", "Gemini 2.0 Flash AI", "Live streaming generation", "Note history", "Email support"],
+        feats: ["15 generations/month", "Gemini 2.5 Flash AI", "Live streaming generation", "Note history", "Email support"],
         cta: cp === "Starter" ? "Current Plan" : "Get Starter", dis: cp === "Starter",
       },
       {

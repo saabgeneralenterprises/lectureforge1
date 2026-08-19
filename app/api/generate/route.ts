@@ -173,7 +173,7 @@ async function generateWithClaude(form: any, controller: ReadableStreamDefaultCo
 // ── GEMINI streaming (free/starter plans) ────────────────────────────────────
 async function generateWithGemini(form: any, controller: ReadableStreamDefaultController, encoder: TextEncoder) {
   const model = gemini.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
   });
 

@@ -532,37 +532,94 @@ function DiagramRenderer({ data }) {
 // ─── Markdown → Structured HTML ───────────────────────────────────────────────
 function parseMarkdown(text) {
   if (!text) return "";
-  return text
-    .replace(/\|(.+)\|/g, (m) => {
-      const cells = m.split("|").filter((c) => c.trim() && !c.match(/^[-\s]+$/));
-      return "<tr>" + cells.map((c) => `<td style="padding:6px 12px;border:1px solid #D8D2C8;font-size:.84rem">${c.trim()}</td>`).join("") + "</tr>";
-    })
-    .replace(/(<tr>[^]*?<\/tr>\n?)+/g, (m) => `<table style="border-collapse:collapse;width:100%;margin:.75rem 0;border-radius:8px;overflow:hidden">${m}</table>`)
-    .replace(/^# (.+)$/gm, "<h1 style=\"font-family:'Playfair Display',serif;font-size:1.85rem;font-weight:900;color:#0D0D0D;line-height:1.2;margin-bottom:.75rem\">$1</h1>")
-    .replace(/^## (.+)$/gm, (_, s) => {
-      const sKey = s.replace(/[^a-zA-Z ]/g, "").trim().toUpperCase();
-      const colors = {
-        "COURSE INFORMATION": "#3D4A5C", "LEARNING OBJECTIVES": "#2D7A4F",
-        "INTRODUCTION": "#2563EB", "MAIN BODY": "#C8401A",
-        "KEY CONCEPTS": "#7C3AED", "WORKED EXAMPLES": "#D97706",
-        "DISCUSSION QUESTIONS": "#D4A847", "ACTIVITIES": "#0891B2",
-        "CONCLUSION": "#0D0D0D", "SUMMARY": "#2D7A4F",
-        "RECOMMENDED": "#3D4A5C", "ASSESSMENT": "#C8401A",
-      };
-      const col = Object.entries(colors).find(([k]) => sKey.includes(k))?.[1] || "#3D4A5C";
-      return `<h2 style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:${col};margin:1.75rem 0 .6rem;padding:.5rem .85rem;border-left:4px solid ${col};border-radius:0 6px 6px 0;background:${col}0d">${s}</h2>`;
-    })
-    .replace(/^### (.+)$/gm, "<h3 style=\"font-size:1rem;font-weight:700;color:#0D0D0D;margin:1.1rem 0 .4rem;padding:.35rem .65rem;background:#F7F4EF;border-left:3px solid #C8401A;border-radius:0 5px 5px 0\">$1</h3>")
-    .replace(/^> (.+)$/gm, "<blockquote style=\"border-left:4px solid #D4A847;padding:.6rem 1rem;background:#FFFBF0;color:#3D4A5C;font-style:italic;margin:.85rem 0;border-radius:0 8px 8px 0\">$1</blockquote>")
-    .replace(/\*\*(.+?)\*\*/g, "<strong style=\"color:#C8401A;font-weight:700\">$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em style=\"color:#3D4A5C\">$1</em>")
-    .replace(/`([^`]+)`/g, "<code style=\"background:#EDE8DF;padding:2px 6px;border-radius:4px;font-size:.87em;font-family:monospace\">$1</code>")
-    .replace(/^---$/gm, "<hr style=\"border:none;border-top:2px solid #EDE8DF;margin:1.25rem 0\"/>")
-    .replace(/^\d+\. (.+)$/gm, "<li style=\"margin-bottom:.4rem;line-height:1.8\">$1</li>")
-    .replace(/^[-*] (.+)$/gm, "<li style=\"margin-bottom:.4rem;line-height:1.8\">$1</li>")
-    .replace(/(<li[^>]*>[\s\S]*?<\/li>\n?)+/g, (m) => `<ul style="margin:.5rem 0 1rem 1.4rem;padding:0">${m}</ul>`)
-    .replace(/\n\n/g, "</p><p style=\"line-height:1.9;margin-bottom:.9rem;color:#1a1a1a\">")
-    .replace(/^(?!<)/gm, "<p style=\"line-height:1.9;margin-bottom:.9rem;color:#1a1a1a\">");
+
+  // Color map for section headings (handles emoji prefixes)
+  function h2color(s) {
+    var k = s.replace(/[^a-zA-Z ]/g, "").trim().toUpperCase();
+    if (k.indexOf("COURSE") >= 0)      return "#3D4A5C";
+    if (k.indexOf("LEARNING") >= 0)    return "#2D7A4F";
+    if (k.indexOf("INTRODUCTION") >= 0)return "#2563EB";
+    if (k.indexOf("MAIN BODY") >= 0 || k.indexOf("BODY") >= 0) return "#C8401A";
+    if (k.indexOf("KEY CONCEPT") >= 0) return "#7C3AED";
+    if (k.indexOf("WORKED") >= 0)      return "#D97706";
+    if (k.indexOf("DISCUSSION") >= 0)  return "#D4A847";
+    if (k.indexOf("ACTIVIT") >= 0)     return "#0891B2";
+    if (k.indexOf("CONCLUSION") >= 0)  return "#0D0D0D";
+    if (k.indexOf("SUMMARY") >= 0 || k.indexOf("TAKEAWAY") >= 0) return "#2D7A4F";
+    if (k.indexOf("RECOMMEND") >= 0 || k.indexOf("RESOURCE") >= 0) return "#3D4A5C";
+    if (k.indexOf("ASSESSMENT") >= 0 || k.indexOf("QUIZ") >= 0)    return "#C8401A";
+    return "#3D4A5C";
+  }
+
+  var out = text;
+
+  // Skip [ILLUSTRATION:...] markers from rendering as text
+  out = out.replace(/\[ILLUSTRATION:[^\]]*\]/g, "");
+
+  // Tables — convert pipe rows then wrap in table
+  out = out.replace(/\|(.+)\|/g, function(m) {
+    var cells = m.split("|").filter(function(c) { return c.trim() && !c.match(/^[-:\s]+$/); });
+    if (!cells.length) return m;
+    return "<tr>" + cells.map(function(c) {
+      return '<td style="padding:7px 13px;border:1px solid #D8D2C8;font-size:.84rem;line-height:1.6">' + c.trim() + "</td>";
+    }).join("") + "</tr>";
+  });
+  out = out.replace(/(<tr>[\s\S]*?<\/tr>
+?)+/g, function(m) {
+    return '<table style="border-collapse:collapse;width:100%;margin:.85rem 0;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">' + m + "</table>";
+  });
+
+  // Headings
+  out = out.replace(/^# (.+)$/gm, function(_, s) {
+    return '<h1 style="font-family:'Playfair Display',Georgia,serif;font-size:clamp(1.4rem,3vw,1.85rem);font-weight:900;color:#0D0D0D;line-height:1.2;margin:1.25rem 0 .75rem">' + s + "</h1>";
+  });
+  out = out.replace(/^## (.+)$/gm, function(_, s) {
+    var col = h2color(s);
+    return '<h2 style="font-family:'Playfair Display',Georgia,serif;font-size:1.1rem;font-weight:700;color:' + col + ';margin:1.75rem 0 .6rem;padding:.5rem .85rem;border-left:4px solid ' + col + ';border-radius:0 6px 6px 0;background:' + col + '18">' + s + "</h2>";
+  });
+  out = out.replace(/^### (.+)$/gm, function(_, s) {
+    return '<h3 style="font-size:.97rem;font-weight:700;color:#0D0D0D;margin:1.1rem 0 .4rem;padding:.35rem .75rem;background:#F7F4EF;border-left:3px solid #C8401A;border-radius:0 5px 5px 0">' + s + "</h3>";
+  });
+
+  // Blockquote
+  out = out.replace(/^> (.+)$/gm, function(_, s) {
+    return '<blockquote style="border-left:4px solid #D4A847;padding:.6rem 1rem;background:#FFFBF0;color:#3D4A5C;font-style:italic;margin:.85rem 0;border-radius:0 8px 8px 0">' + s + "</blockquote>";
+  });
+
+  // Bold and italic (safe order: bold first)
+  out = out.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#C8401A;font-weight:700">$1</strong>');
+  out = out.replace(/\*(.+?)\*/g, '<em style="color:#3D4A5C">$1</em>');
+
+  // Inline code
+  out = out.replace(/`([^`]+)`/g, '<code style="background:#EDE8DF;padding:2px 6px;border-radius:4px;font-size:.87em;font-family:monospace;color:#C8401A">$1</code>');
+
+  // HR
+  out = out.replace(/^---$/gm, '<hr style="border:none;border-top:2px solid #EDE8DF;margin:1.25rem 0"/>');
+
+  // Lists — numbered then bullet, wrap consecutive items in ul
+  out = out.replace(/^\d+\. (.+)$/gm, '<li style="margin-bottom:.4rem;line-height:1.8;padding-left:.25rem">$1</li>');
+  out = out.replace(/^[-*•] (.+)$/gm, '<li style="margin-bottom:.4rem;line-height:1.8;padding-left:.25rem">$1</li>');
+  out = out.replace(/(<li[\s\S]*?<\/li>
+?)+/g, function(m) {
+    return '<ul style="margin:.5rem 0 1rem 1.5rem;padding:0;list-style:disc">' + m + "</ul>";
+  });
+
+  // Paragraphs — only wrap lines not already wrapped in a tag
+  out = out.replace(/
+
++/g, "
+
+");
+  out = out.split("
+
+").map(function(block) {
+    if (!block.trim()) return "";
+    if (block.trim().startsWith("<")) return block; // already HTML
+    return '<p style="line-height:1.9;margin-bottom:.9rem;color:#1a1a1a">' + block.trim() + "</p>";
+  }).join("
+");
+
+  return out;
 }
 
 // ─── Note Document Component ──────────────────────────────────────────────────
@@ -631,10 +688,16 @@ function NoteDocument({ form, text, diagrams, illustrations }) {
               if (illData) {
                 elements.push(<IllustrationRenderer key={"ill" + i} data={illData} />);
               } else {
-                // Placeholder while loading
+                // Placeholder — shows while illustration is being generated
                 elements.push(
-                  <div key={"ph" + i} style={{ margin: "1rem 0", padding: "1rem", background: "#F7F4EF", border: "1px dashed #D8D2C8", borderRadius: 10, textAlign: "center" }}>
-                    <div style={{ fontSize: ".8rem", color: "#8A8F9A" }}>📐 Illustration loading: <em>{parts[i]}</em></div>
+                  <div key={"ph" + i} style={{ margin: "1rem 0", borderRadius: 12, overflow: "hidden", border: "1px solid #D8D2C8" }}>
+                    <div style={{ background: "#0D0D0D", padding: "8px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: ".65rem", color: "#D4A847", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>📐 Illustration</span>
+                      <span style={{ fontSize: ".73rem", color: "#666", fontStyle: "italic" }}>{String(parts[i]).trim().slice(0,70)}</span>
+                    </div>
+                    <div style={{ background: "#F7F4EF", padding: "2rem 1rem", textAlign: "center" }}>
+                      <div style={{ fontSize: ".82rem", color: "#8A8F9A" }}>⏳ Generating illustration…</div>
+                    </div>
                   </div>
                 );
               }
@@ -928,32 +991,76 @@ export default function App() {
   // ── Nav ───────────────────────────────────────────────────────────────────
   function Nav() {
     return (
-      <nav className="lf-nav">
-        <button onClick={onLogoClick} className="lf-nav-logo">
-          <span style={{ color: "#D4A847" }}>L</span>ecture<span style={{ color: "#C8401A" }}>F</span>orge
+      <nav style={{
+        position: "sticky", top: 0, zIndex: 200,
+        background: "#0D0D0D", borderBottom: "1px solid #1a1a1a",
+        padding: "0 1.25rem", height: 58,
+        display: "flex", alignItems: "center",
+        justifyContent: "space-between", gap: ".75rem",
+        fontFamily: "'DM Sans',Arial,sans-serif",
+      }}>
+        {/* Logo */}
+        <button onClick={onLogoClick} style={{
+          background: "none", border: "none", cursor: "pointer",
+          fontFamily: "'Playfair Display',Georgia,serif",
+          fontSize: "1.2rem", fontWeight: 900, color: "#fff",
+          flexShrink: 0, whiteSpace: "nowrap", padding: 0,
+        }}>
+          <span style={{ color: "#D4A847" }}>L</span>ecture
+          <span style={{ color: "#C8401A" }}>F</span>orge
         </button>
-        <div className="lf-nav-links">
+
+        {/* Right side */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "nowrap" }}>
           {user && (
-            <button onClick={() => setPage("history")} className="lf-nav-history">History</button>
+            <button onClick={() => setPage("history")} style={{
+              background: "none", border: "none", color: "#888",
+              cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem",
+              display: "block",
+            }}>History</button>
           )}
-          <button onClick={() => setShowPrice(true)} className="lf-nav-pricing">Pricing</button>
+          <button onClick={() => setShowPrice(true)} style={{
+            background: "none", border: "1px solid #D4A84755",
+            color: "#D4A847", cursor: "pointer", fontFamily: "inherit",
+            fontSize: ".76rem", padding: "4px 10px", borderRadius: 8, fontWeight: 700,
+            whiteSpace: "nowrap",
+          }}>Pricing</button>
+
           {user ? (
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               {isAdmin && (
-                <button onClick={() => setShowAdmin(true)} style={BTN(C.slate, { padding: "5px 10px", fontSize: ".75rem", borderRadius: 8 })}>Admin</button>
+                <button onClick={() => setShowAdmin(true)} style={{
+                  background: "#3D4A5C", color: "#fff", border: "none",
+                  borderRadius: 8, padding: "5px 10px", cursor: "pointer",
+                  fontFamily: "inherit", fontSize: ".74rem", fontWeight: 700,
+                }}>Admin</button>
               )}
-              <div title="Sign out" onClick={() => { setUser(null); setUsed(0); }} className="lf-avatar">
+              <div title={"Signed in as " + user.name + " · Click to sign out"}
+                onClick={() => { setUser(null); setUsed(0); }}
+                style={{
+                  background: "#C8401A", color: "#fff", borderRadius: "50%",
+                  width: 32, height: 32, display: "flex", alignItems: "center",
+                  justifyContent: "center", fontWeight: 700, fontSize: ".82rem",
+                  cursor: "pointer", flexShrink: 0,
+                  fontFamily: "'Playfair Display',serif",
+                }}>
                 {user.name[0].toUpperCase()}
               </div>
             </div>
           ) : (
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <button onClick={() => { setAuthTab("login"); setPage("login"); }} style={{ background: "none", border: "1px solid #ffffff33", color: "#fff", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", fontSize: ".8rem", fontWeight: 600, whiteSpace: "nowrap" }}>
-                Sign In
-              </button>
-              <button onClick={() => { setSelectedPlan("Free"); setAuthTab("signup"); setPage("login"); }} style={BTN(C.accent, { padding: "6px 12px", fontSize: ".8rem", borderRadius: 8, whiteSpace: "nowrap" })}>
-                Sign Up Free
-              </button>
+              <button onClick={() => { setAuthTab("login"); setPage("login"); }} style={{
+                background: "none", border: "1px solid #ffffff33", color: "#fff",
+                borderRadius: 8, padding: "6px 11px", cursor: "pointer",
+                fontFamily: "inherit", fontSize: ".79rem", fontWeight: 600,
+                whiteSpace: "nowrap",
+              }}>Sign In</button>
+              <button onClick={() => { setSelectedPlan("Free"); setAuthTab("signup"); setPage("login"); }} style={{
+                background: "#C8401A", color: "#fff", border: "none",
+                borderRadius: 8, padding: "6px 11px", cursor: "pointer",
+                fontFamily: "inherit", fontSize: ".79rem", fontWeight: 700,
+                whiteSpace: "nowrap",
+              }}>Sign Up Free</button>
             </div>
           )}
         </div>

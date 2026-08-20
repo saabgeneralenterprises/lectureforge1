@@ -533,93 +533,115 @@ function DiagramRenderer({ data }) {
 function parseMarkdown(text) {
   if (!text) return "";
 
-  // Color map for section headings (handles emoji prefixes)
   function h2color(s) {
     var k = s.replace(/[^a-zA-Z ]/g, "").trim().toUpperCase();
-    if (k.indexOf("COURSE") >= 0)      return "#3D4A5C";
-    if (k.indexOf("LEARNING") >= 0)    return "#2D7A4F";
-    if (k.indexOf("INTRODUCTION") >= 0)return "#2563EB";
-    if (k.indexOf("MAIN BODY") >= 0 || k.indexOf("BODY") >= 0) return "#C8401A";
-    if (k.indexOf("KEY CONCEPT") >= 0) return "#7C3AED";
-    if (k.indexOf("WORKED") >= 0)      return "#D97706";
-    if (k.indexOf("DISCUSSION") >= 0)  return "#D4A847";
-    if (k.indexOf("ACTIVIT") >= 0)     return "#0891B2";
-    if (k.indexOf("CONCLUSION") >= 0)  return "#0D0D0D";
-    if (k.indexOf("SUMMARY") >= 0 || k.indexOf("TAKEAWAY") >= 0) return "#2D7A4F";
-    if (k.indexOf("RECOMMEND") >= 0 || k.indexOf("RESOURCE") >= 0) return "#3D4A5C";
-    if (k.indexOf("ASSESSMENT") >= 0 || k.indexOf("QUIZ") >= 0)    return "#C8401A";
+    if (k.indexOf("COURSE") >= 0)       return "#3D4A5C";
+    if (k.indexOf("LEARNING") >= 0)     return "#2D7A4F";
+    if (k.indexOf("INTRODUCTION") >= 0) return "#2563EB";
+    if (k.indexOf("BODY") >= 0)         return "#C8401A";
+    if (k.indexOf("KEY CONCEPT") >= 0)  return "#7C3AED";
+    if (k.indexOf("WORKED") >= 0)       return "#D97706";
+    if (k.indexOf("DISCUSSION") >= 0)   return "#D4A847";
+    if (k.indexOf("ACTIVIT") >= 0)      return "#0891B2";
+    if (k.indexOf("CONCLUSION") >= 0)   return "#0D0D0D";
+    if (k.indexOf("SUMMARY") >= 0 || k.indexOf("TAKEAWAY") >= 0)    return "#2D7A4F";
+    if (k.indexOf("RECOMMEND") >= 0 || k.indexOf("RESOURCE") >= 0)  return "#3D4A5C";
+    if (k.indexOf("ASSESSMENT") >= 0 || k.indexOf("QUIZ") >= 0)     return "#C8401A";
     return "#3D4A5C";
   }
 
-  var out = text;
+  var PF = "Playfair Display, Georgia, serif";
+  var lines = text.split("\n");
+  var result = [];
+  var i = 0;
 
-  // Skip [ILLUSTRATION:...] markers from rendering as text
-  out = out.replace(/\[ILLUSTRATION:[^\]]*\]/g, "");
+  while (i < lines.length) {
+    var line = lines[i];
 
-  // Tables — convert pipe rows then wrap in table
-  out = out.replace(/\|(.+)\|/g, function(m) {
-    var cells = m.split("|").filter(function(c) { return c.trim() && !c.match(/^[-:\s]+$/); });
-    if (!cells.length) return m;
-    return "<tr>" + cells.map(function(c) {
-      return '<td style="padding:7px 13px;border:1px solid #D8D2C8;font-size:.84rem;line-height:1.6">' + c.trim() + "</td>";
-    }).join("") + "</tr>";
-  });
-  out = out.replace(/(<tr>[\s\S]*?<\/tr>
-?)+/g, function(m) {
-    return '<table style="border-collapse:collapse;width:100%;margin:.85rem 0;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">' + m + "</table>";
-  });
+    // Strip illustration markers
+    if (/^\[ILLUSTRATION:/i.test(line.trim())) { i++; continue; }
 
-  // Headings
-  out = out.replace(/^# (.+)$/gm, function(_, s) {
-    return '<h1 style="font-family:'Playfair Display',Georgia,serif;font-size:clamp(1.4rem,3vw,1.85rem);font-weight:900;color:#0D0D0D;line-height:1.2;margin:1.25rem 0 .75rem">' + s + "</h1>";
-  });
-  out = out.replace(/^## (.+)$/gm, function(_, s) {
-    var col = h2color(s);
-    return '<h2 style="font-family:'Playfair Display',Georgia,serif;font-size:1.1rem;font-weight:700;color:' + col + ';margin:1.75rem 0 .6rem;padding:.5rem .85rem;border-left:4px solid ' + col + ';border-radius:0 6px 6px 0;background:' + col + '18">' + s + "</h2>";
-  });
-  out = out.replace(/^### (.+)$/gm, function(_, s) {
-    return '<h3 style="font-size:.97rem;font-weight:700;color:#0D0D0D;margin:1.1rem 0 .4rem;padding:.35rem .75rem;background:#F7F4EF;border-left:3px solid #C8401A;border-radius:0 5px 5px 0">' + s + "</h3>";
-  });
+    // H1
+    var m1 = line.match(/^# (.+)$/);
+    if (m1) {
+      result.push('<h1 style="font-family:' + PF + ';font-size:1.75rem;font-weight:900;color:#0D0D0D;line-height:1.2;margin:1.25rem 0 .75rem">' + m1[1] + "</h1>");
+      i++; continue;
+    }
 
-  // Blockquote
-  out = out.replace(/^> (.+)$/gm, function(_, s) {
-    return '<blockquote style="border-left:4px solid #D4A847;padding:.6rem 1rem;background:#FFFBF0;color:#3D4A5C;font-style:italic;margin:.85rem 0;border-radius:0 8px 8px 0">' + s + "</blockquote>";
-  });
+    // H2
+    var m2 = line.match(/^## (.+)$/);
+    if (m2) {
+      var col = h2color(m2[1]);
+      result.push('<h2 style="font-family:' + PF + ';font-size:1.1rem;font-weight:700;color:' + col + ';margin:1.75rem 0 .6rem;padding:.5rem .85rem;border-left:4px solid ' + col + ';border-radius:0 6px 6px 0;background:' + col + '22">' + m2[1] + "</h2>");
+      i++; continue;
+    }
 
-  // Bold and italic (safe order: bold first)
-  out = out.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#C8401A;font-weight:700">$1</strong>');
-  out = out.replace(/\*(.+?)\*/g, '<em style="color:#3D4A5C">$1</em>');
+    // H3
+    var m3 = line.match(/^### (.+)$/);
+    if (m3) {
+      result.push('<h3 style="font-size:.97rem;font-weight:700;color:#0D0D0D;margin:1.1rem 0 .4rem;padding:.35rem .75rem;background:#F7F4EF;border-left:3px solid #C8401A;border-radius:0 5px 5px 0">' + m3[1] + "</h3>");
+      i++; continue;
+    }
 
-  // Inline code
-  out = out.replace(/`([^`]+)`/g, '<code style="background:#EDE8DF;padding:2px 6px;border-radius:4px;font-size:.87em;font-family:monospace;color:#C8401A">$1</code>');
+    // Blockquote
+    var mbq = line.match(/^> (.+)$/);
+    if (mbq) {
+      result.push('<blockquote style="border-left:4px solid #D4A847;padding:.6rem 1rem;background:#FFFBF0;color:#3D4A5C;font-style:italic;margin:.85rem 0;border-radius:0 8px 8px 0">' + mbq[1] + "</blockquote>");
+      i++; continue;
+    }
 
-  // HR
-  out = out.replace(/^---$/gm, '<hr style="border:none;border-top:2px solid #EDE8DF;margin:1.25rem 0"/>');
+    // HR
+    if (line.trim() === "---") {
+      result.push('<hr style="border:none;border-top:2px solid #EDE8DF;margin:1.25rem 0"/>');
+      i++; continue;
+    }
 
-  // Lists — numbered then bullet, wrap consecutive items in ul
-  out = out.replace(/^\d+\. (.+)$/gm, '<li style="margin-bottom:.4rem;line-height:1.8;padding-left:.25rem">$1</li>');
-  out = out.replace(/^[-*•] (.+)$/gm, '<li style="margin-bottom:.4rem;line-height:1.8;padding-left:.25rem">$1</li>');
-  out = out.replace(/(<li[\s\S]*?<\/li>
-?)+/g, function(m) {
-    return '<ul style="margin:.5rem 0 1rem 1.5rem;padding:0;list-style:disc">' + m + "</ul>";
-  });
+    // Table row — collect consecutive pipe lines
+    if (line.trim().startsWith("|")) {
+      var tableRows = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        var cells = lines[i].split("|").filter(function(c) { return c.trim() && !/^[-:\s]+$/.test(c.trim()); });
+        if (cells.length > 0) {
+          tableRows.push("<tr>" + cells.map(function(c) {
+            return '<td style="padding:7px 13px;border:1px solid #D8D2C8;font-size:.84rem;line-height:1.6">' + c.trim() + "</td>";
+          }).join("") + "</tr>");
+        }
+        i++;
+      }
+      if (tableRows.length > 0) {
+        result.push('<table style="border-collapse:collapse;width:100%;margin:.85rem 0;border-radius:8px;overflow:hidden">' + tableRows.join("") + "</table>");
+      }
+      continue;
+    }
 
-  // Paragraphs — only wrap lines not already wrapped in a tag
-  out = out.replace(/
+    // List items — collect consecutive
+    if (/^(\d+\.|[-*•])/.test(line)) {
+      var items = [];
+      while (i < lines.length && /^(\d+\.|[-*•])/.test(lines[i])) {
+        var lm = lines[i].match(/^(?:\d+\.|[-*•]) (.+)$/);
+        if (lm) items.push('<li style="margin-bottom:.4rem;line-height:1.8">' + inlineMd(lm[1]) + "</li>");
+        i++;
+      }
+      result.push('<ul style="margin:.5rem 0 1rem 1.5rem;padding:0;list-style:disc">' + items.join("") + "</ul>");
+      continue;
+    }
 
-+/g, "
+    // Blank line
+    if (!line.trim()) { i++; continue; }
 
-");
-  out = out.split("
+    // Paragraph
+    result.push('<p style="line-height:1.9;margin-bottom:.9rem;color:#1a1a1a">' + inlineMd(line) + "</p>");
+    i++;
+  }
 
-").map(function(block) {
-    if (!block.trim()) return "";
-    if (block.trim().startsWith("<")) return block; // already HTML
-    return '<p style="line-height:1.9;margin-bottom:.9rem;color:#1a1a1a">' + block.trim() + "</p>";
-  }).join("
-");
+  return result.join("\n");
+}
 
-  return out;
+function inlineMd(text) {
+  return (text || "")
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#C8401A;font-weight:700">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em style="color:#3D4A5C">$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background:#EDE8DF;padding:2px 6px;border-radius:4px;font-size:.87em;font-family:monospace;color:#C8401A">$1</code>');
 }
 
 // ─── Note Document Component ──────────────────────────────────────────────────

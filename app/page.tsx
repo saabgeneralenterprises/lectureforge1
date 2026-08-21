@@ -637,8 +637,85 @@ function parseMarkdown(text) {
   return result.join("\n");
 }
 
+function convertLatex(text) {
+  if (!text) return text;
+  return text
+    // Common superscripts: ^{-11} → ⁻¹¹, ^2 → ²
+    .replace(/\^\{([^}]+)\}/g, function(_, exp) {
+      var sup = {"0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹",
+                 "-":"⁻","+":"⁺","n":"ⁿ","i":"ⁱ","a":"ᵃ","b":"ᵇ","x":"ˣ"};
+      return exp.split("").map(function(c){return sup[c]||c;}).join("");
+    })
+    .replace(/\^(\d)/g, function(_, d) {
+      return {"0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"}[d] || d;
+    })
+    // Common subscripts: _{eff} → subscript
+    .replace(/\_\{([^}]+)\}/g, function(_, sub) {
+      var smap = {"0":"₀","1":"₁","2":"₂","3":"₃","4":"₄","5":"₅","6":"₆","7":"₇","8":"₈","9":"₉",
+                  "n":"ₙ","i":"ᵢ","e":"ₑ","a":"ₐ","x":"ₓ"};
+      return sub.split("").map(function(c){return smap[c]||c;}).join("");
+    })
+    .replace(/_(\d)/g, function(_, d) {
+      return {"0":"₀","1":"₁","2":"₂","3":"₃","4":"₄","5":"₅","6":"₆","7":"₇","8":"₈","9":"₉"}[d] || d;
+    })
+    // LaTeX text commands: \text{eff} → eff
+    .replace(/\\text\{([^}]+)\}/g, "$1")
+    .replace(/\text\{([^}]+)\}/g, "$1")
+    // Greek letters
+    .replace(/\\alpha/g,"α").replace(/\alpha/g,"α")
+    .replace(/\\beta/g,"β").replace(/\beta/g,"β")
+    .replace(/\\gamma/g,"γ").replace(/\gamma/g,"γ")
+    .replace(/\\delta/g,"δ").replace(/\delta/g,"δ")
+    .replace(/\\epsilon/g,"ε").replace(/\epsilon/g,"ε")
+    .replace(/\\theta/g,"θ").replace(/\theta/g,"θ")
+    .replace(/\\lambda/g,"λ").replace(/\lambda/g,"λ")
+    .replace(/\\mu/g,"μ").replace(/\mu/g,"μ")
+    .replace(/\\nu/g,"ν").replace(/\nu/g,"ν")
+    .replace(/\\pi/g,"π").replace(/\pi/g,"π")
+    .replace(/\\sigma/g,"σ").replace(/\sigma/g,"σ")
+    .replace(/\\phi/g,"φ").replace(/\phi/g,"φ")
+    .replace(/\\psi/g,"ψ").replace(/\psi/g,"ψ")
+    .replace(/\\omega/g,"ω").replace(/\omega/g,"ω")
+    .replace(/\\Delta/g,"Δ").replace(/\Delta/g,"Δ")
+    .replace(/\\Sigma/g,"Σ").replace(/\Sigma/g,"Σ")
+    .replace(/\\Omega/g,"Ω").replace(/\Omega/g,"Ω")
+    .replace(/\\infty/g,"∞").replace(/\infty/g,"∞")
+    .replace(/\\approx/g,"≈").replace(/\approx/g,"≈")
+    .replace(/\\neq/g,"≠").replace(/\neq/g,"≠")
+    .replace(/\\leq/g,"≤").replace(/\leq/g,"≤")
+    .replace(/\\geq/g,"≥").replace(/\geq/g,"≥")
+    .replace(/\\times/g,"×").replace(/\times/g,"×")
+    .replace(/\\cdot/g,"·").replace(/\cdot/g,"·")
+    .replace(/\\pm/g,"±").replace(/\pm/g,"±")
+    .replace(/\\rightarrow/g,"→").replace(/\rightarrow/g,"→")
+    .replace(/\\leftarrow/g,"←").replace(/\leftarrow/g,"←")
+    .replace(/\\Rightarrow/g,"⇒").replace(/\Rightarrow/g,"⇒")
+    // Fractions: \frac{a}{b} → a/b
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g,"$1/$2")
+    .replace(/\frac\{([^}]+)\}\{([^}]+)\}/g,"$1/$2")
+    // Strip remaining $ signs (inline math delimiters)
+    .replace(/\$([^$]+)\$/g, function(_, inner) {
+      // Recursively clean the inner content
+      return inner
+        .replace(/\text\{([^}]+)\}/g,"$1")
+        .replace(/\^\{([^}]+)\}/g, function(_, e) {
+          var sup={"0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹","-":"⁻","+":"⁺"};
+          return e.split("").map(function(c){return sup[c]||c;}).join("");
+        })
+        .replace(/\_\{([^}]+)\}/g, function(_, s) {
+          var sm={"0":"₀","1":"₁","2":"₂","3":"₃","4":"₄","5":"₅","6":"₆","7":"₇","8":"₈","9":"₉"};
+          return s.split("").map(function(c){return sm[c]||c;}).join("");
+        })
+        .replace(/\^(\d)/g, function(_,d){return {"0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"}[d]||d;})
+        .replace(/_(\d)/g, function(_,d){return {"0":"₀","1":"₁","2":"₂","3":"₃","4":"₄","5":"₅","6":"₆","7":"₇","8":"₈","9":"₉"}[d]||d;})
+        .replace(/\\/g,"")
+        .trim();
+    });
+}
+
 function inlineMd(text) {
-  return (text || "")
+  var t = convertLatex(text || "");
+  return t
     .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#C8401A;font-weight:700">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em style="color:#3D4A5C">$1</em>')
     .replace(/`([^`]+)`/g, '<code style="background:#EDE8DF;padding:2px 6px;border-radius:4px;font-size:.87em;font-family:monospace;color:#C8401A">$1</code>');

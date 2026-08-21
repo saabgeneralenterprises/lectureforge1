@@ -150,7 +150,17 @@ By the end of this lecture, students will be able to:
 2. [Question with answer]
 3. [Question with answer]
 
-CRITICAL: Every section fully written. Calibrate for ${lv.label} (${lv.sub}). Include [ILLUSTRATION: ...] markers exactly as shown — make descriptions highly specific to ${form.subject}.`;
+CRITICAL FORMATTING RULES — FOLLOW EXACTLY:
+- NEVER use LaTeX notation like $x$, $\\frac{}{}$, $10^{-11}$, \\alpha, \\psi etc.
+- Write ALL math and symbols in plain Unicode:
+  - Superscripts: use ² ³ ⁻¹ ⁻¹¹ ⁺ (e.g. 10⁻¹¹ not $10^{-11}$)
+  - Subscripts: use ₁ ₂ ₙ (e.g. m₁ not $m_1$)
+  - Greek letters: write α β γ δ ε θ λ μ π σ φ ψ ω Δ Σ directly
+  - Fractions: write a/b or use words like "one-half"
+  - Operators: use × ÷ ± ≈ ≠ ≤ ≥ → ⇒ ∞ directly
+  - Equations: write E = hν not $E = h\\nu$
+- For chemical formulas: H₂O, CO₂, Na⁺, Cl⁻ (use subscript/superscript Unicode)
+- Every section fully written. Calibrate for ${lv.label} (${lv.sub}). Include [ILLUSTRATION: ...] markers exactly as shown — make descriptions highly specific to ${form.subject}.`;
 }
 
 // ── CLAUDE streaming (premium plans) ─────────────────────────────────────────

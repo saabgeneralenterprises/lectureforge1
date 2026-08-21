@@ -46,7 +46,22 @@ async function callClaude(prompt: string): Promise<string> {
 }
 
 async function callGemini(prompt: string): Promise<string> {
-  const model = gemini.getGenerativeModel({ model: "gemini-3.6-flash" });
+  const models = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest"];
+  for (let i = 0; i < models.length; i++) {
+    try {
+      const model = gemini.getGenerativeModel({ model: models[i] });
+      const res = await model.generateContent(prompt);
+      return res.response.text();
+    } catch (e: any) {
+      const msg = e?.message || "";
+      const retry = msg.includes("503") || msg.includes("404") || msg.includes("not found") || msg.includes("no longer");
+      if (i < models.length - 1 && retry) { await new Promise(r => setTimeout(r, 1500)); continue; }
+      // Fallback to Claude on all Gemini failures
+      return await callClaude(prompt);
+    }
+  }
+  return await callClaude(prompt);
+});
   const res = await model.generateContent(prompt);
   return res.response.text();
 }

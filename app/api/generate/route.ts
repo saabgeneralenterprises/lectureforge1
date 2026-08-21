@@ -171,25 +171,32 @@ async function generateWithClaude(form: any, controller: ReadableStreamDefaultCo
 }
 
 // ── GEMINI streaming (free/starter plans) ────────────────────────────────────
+// -- GEMINI streaming with retry + Claude fallback --
 async function generateWithGemini(form: any, controller: ReadableStreamDefaultController, encoder: TextEncoder) {
-  const model = gemini.getGenerativeModel({
-    model: "gemini-3.6-flash",
-    generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
-  });
-
-  const result = await model.generateContentStream(buildPrompt(form));
-
-  for await (const chunk of result.stream) {
-    const text = chunk.text();
-    if (text) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ text, model: "gemini" })}\n\n`)
-      );
+  const models = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest"];
+  for (let i = 0; i < models.length; i++) {
+    try {
+      const m = gemini.getGenerativeModel({ model: models[i], generationConfig: { maxOutputTokens: 8192, temperature: 0.7 } });
+      controller.enqueue(encoder.encode("data: " + JSON.stringify({ modelInfo: { name: models[i], badge: "AI" } }) + "\n\n"));
+      const result = await m.generateContentStream(buildPrompt(form));
+      for await (const chunk of result.stream) {
+        const t = chunk.text();
+        if (t) controller.enqueue(encoder.encode("data: " + JSON.stringify({ text: t }) + "\n\n"));
+      }
+      return;
+    } catch (e: any) {
+      const msg = e?.message || "";
+      const retry = msg.includes("503") || msg.includes("404") || msg.includes("not found") || msg.includes("no longer");
+      if (i < models.length - 1 && retry) { await new Promise(r => setTimeout(r, 1500)); continue; }
+      // Fallback to Claude
+      controller.enqueue(encoder.encode("data: " + JSON.stringify({ modelInfo: { name: "Claude (fallback)", badge: "AI" } }) + "\n\n"));
+      await generateWithClaude(form, controller, encoder);
+      return;
     }
   }
 }
 
-// ── MAIN HANDLER ─────────────────────────────────────────────────────────────
+
 export async function POST(req: NextRequest) {
   try {
     const { form, userPlan } = await req.json();

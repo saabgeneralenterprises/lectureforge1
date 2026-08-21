@@ -61,9 +61,6 @@ async function callGemini(prompt: string): Promise<string> {
     }
   }
   return await callClaude(prompt);
-});
-  const res = await model.generateContent(prompt);
-  return res.response.text();
 }
 
 export async function POST(req: NextRequest) {
